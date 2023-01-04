@@ -1,0 +1,86 @@
+#!/bin/bash
+#ths is Server initialization script
+#by atm
+echo "初始化系统运行中......"
+sleep 2
+##关闭防火墙
+firewalld() {
+		systemctl stop firewalld
+		systemctl enable frewalld
+		setenforce 0
+		SELINUX=disabled > /etc/selinux/config
+		SELINUXTYPE=targeted >> /etc/selinux/config
+		
+}
+##yum源
+yum() {
+		curl -o /etc/yum.repos.d/CentOS-Base.repo http://mirrors.aliyun.com/repo/Centos-7.repo
+		if [ $? -eq 0 ];then
+			echo "yum源配置完成"
+		else	
+			echo "请检查配置"
+		fi
+}
+
+##添加用户
+yh() {
+	    useradd atm
+	    echo "123.com" | passwd --stdin atm &>/dev/null
+	    echo "用户创建完成"
+}
+##dns
+dns() {
+	   echo "nameserver 8.8.8.8" >> /etc/resolv.conf 
+	   echo "dns配置完成"
+}
+
+##基础服务
+basic_service() {
+
+		yum -y install lrzsz net-tools unzip vim 
+		echo "基础服务配置完成"
+}
+##内核优化
+cor_a() {
+cat >>/etc/security/limits.conf<<EOF
+* soft nofile 102400
+* hard nofile 102400
+* soft nproc 102400
+* hard nproc 102400
+EOF
+	sysctl -p
+
+cat >>/etc/pam.d/login<<EOF
+sessionrequired /lib/security/pam_limits.so
+EOF
+
+cat >>/etc/sysctl.conf<<EOF
+net.ipv4.tcp_syncookies= 1
+net.ipv4.tcp_tw_reuse= 1
+net.ipv4.tcp_tw_recycle= 1
+net.ipv4.tcp_fin_timeout= 30
+EOF
+sysctl -p 
+cat >>/etc/ssh/sshd_config<<EOF
+ClientAliveCountMax 3
+EOF
+systemctl restart sshd
+}
+
+##时间同步
+ntp() {
+	yum -y install ntpdate
+	ntpdate -u ntp1.aliyun.com
+	systemctl restart ntpdate.service
+	echo "时间同步完成"
+	ehco "初始化完成"
+}
+
+
+firewalld
+yh
+dns
+cor_a
+yum
+basic_service
+ntp
